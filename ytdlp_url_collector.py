@@ -146,37 +146,57 @@ def _default_settings() -> Dict:
 
 def load_settings() -> Dict:
     """
-    Loads settings from settings.json, creating it if necessary.
-    If the legacy collector_modes.json exists, its values are migrated
-    into the new settings structure once.
+    Load settings from settings.json, creating it if necessary.
+    Existing keys that are not explicitly managed here (for example
+    sections used by other tools) are preserved.
     """
-    settings = _default_settings()
+    base_defaults = _default_settings()
+    settings: Dict
 
     # Load existing settings.json if available
     if SETTINGS_JSON.exists():
         try:
             with SETTINGS_JSON.open("r", encoding="utf-8") as f:
                 data = json.load(f)
-            # Shallow merge: keep defaults for missing sections/keys
             if isinstance(data, dict):
-                # language
-                if "language" in data:
-                    settings["language"] = data["language"]
-                # paths
-                if isinstance(data.get("paths"), dict):
-                    settings["paths"].update(data["paths"])
-                # modes
-                if isinstance(data.get("modes"), dict):
-                    settings["modes"].update(data["modes"])
+                # Start from existing settings and only ensure required sections.
+                settings = data
+            else:
+                # Fallback to default structure if JSON root is not a dict.
+                settings = base_defaults.copy()
         except Exception:
             # If settings.json is corrupted, fall back to defaults and recreate later.
-            pass
+            settings = base_defaults.copy()
     else:
-        # No settings file yet: migrate legacy modes if present.
+        # No settings file yet: start from defaults and migrate legacy modes if present.
+        settings = base_defaults.copy()
         legacy_modes = _load_legacy_modes()
         if legacy_modes:
+            settings.setdefault("modes", {})
             settings["modes"].update(legacy_modes)
         save_settings(settings)
+
+    # Ensure language key is present, but keep an existing one unchanged.
+    if "language" not in settings:
+        settings["language"] = base_defaults.get("language", "de")
+
+    # Ensure paths section exists and fill missing entries from defaults.
+    default_paths = base_defaults.get("paths", {})
+    paths = settings.get("paths")
+    if not isinstance(paths, dict):
+        paths = {}
+    for key, val in default_paths.items():
+        paths.setdefault(key, val)
+    settings["paths"] = paths
+
+    # Ensure modes section exists and fill missing entries from defaults.
+    default_modes = base_defaults.get("modes", {})
+    modes = settings.get("modes")
+    if not isinstance(modes, dict):
+        modes = {}
+    for key, val in default_modes.items():
+        modes.setdefault(key, val)
+    settings["modes"] = modes
 
     # Normalize path entries to absolute paths
     paths = settings.get("paths", {})
@@ -192,7 +212,7 @@ def load_settings() -> Dict:
 
     settings["paths"] = paths
 
-    # Persist normalized settings
+    # Persist normalized settings, preserving all other sections (e.g. timecode_filename).
     save_settings(settings)
     return settings
 
@@ -575,9 +595,11 @@ def run_ytdl_job(job: Dict[str, object]) -> None:
 
     cmd.append(url)
 
+    cmd_str = " ".join(cmd)
+
     info_msg(
-        "\n[JOB] Starte:", " ".join(cmd),
-        "\n[JOB] Start:", " ".join(cmd),
+        f"\n[JOB] Starte: {cmd_str}",
+        f"\n[JOB] Start: {cmd_str}",
     )
     print("------------------------------------------------------------")
     try:
@@ -965,7 +987,6 @@ def main() -> None:
 
     # Ensure directories/files exist
     YTDL_DIR.mkdir(parents=True, exist_ok=True)
-    URLS_TXT.touch(exist_ok=True)
     HISTORY_TSV.touch(exist_ok=True)
 
     # Always work in the repository/base directory
@@ -981,8 +1002,8 @@ def main() -> None:
         f"Working directory: {YTDL_DIR}",
     )
     info_msg(
-        f"URL-Datei    : {URLS_TXT}",
-        f"URL file     : {URLS_TXT}",
+        f"URL-Datei (Nur CLI/Batch): {URLS_TXT}",
+        f"URL file (CLI/batch only): {URLS_TXT}",
     )
     info_msg(
         f"History-Datei: {HISTORY_TSV}\n",
@@ -1014,25 +1035,8 @@ def main() -> None:
         f"[INFO] History: {len(history_entries)} entries, {len(history_by_url)} distinct URLs.\n",
     )
 
-    # Use existing URLs in urls.txt as initial session state
-    existing_urls = read_urls_file()
-    if existing_urls:
-        info_msg(
-            f"[INFO] urls.txt enthält bereits {len(existing_urls)} URL(s).",
-            f"[INFO] urls.txt already contains {len(existing_urls)} URL(s).",
-        )
-        info_msg(
-            "      Diese werden in dieser Session mit berücksichtigt.\n",
-            "      They will be considered in this session.\n",
-        )
-    else:
-        info_msg(
-            "[INFO] urls.txt ist aktuell leer.\n",
-            "[INFO] urls.txt is currently empty.\n",
-        )
-
-    # Session set: URLs scheduled for this session
-    session_urls = set(existing_urls)
+    # Session set: URLs that are being processed in this collector session
+    session_urls: set[str] = set()
 
     def process_single_url(url: str) -> None:
         nonlocal history_entries, history_by_url, session_urls
@@ -1105,7 +1109,6 @@ def main() -> None:
             dur_str = format_duration(duration)
 
             session_urls.add(url)
-            append_url(url)
 
             if title and channel:
                 if dur_str:
@@ -1172,7 +1175,6 @@ def main() -> None:
         # 3) New URL (not in history and not in session)
         title, channel, thumb, duration = get_video_info(url)
         session_urls.add(url)
-        append_url(url)
 
         dur_str = format_duration(duration)
 
@@ -1231,16 +1233,16 @@ def main() -> None:
         "  - Copy YouTube URLs (or other HTTP links) to the clipboard.",
     )
     info_msg(
-        "  - Jede neue URL wird automatisch in urls.txt eingetragen (Session),",
-        "  - Each new URL is automatically appended to urls.txt (session).",
+        "  - Jede neue URL wird automatisch in die aktuelle Session übernommen",
+        "  - Each new URL is automatically added to the current session",
     )
     info_msg(
         "    außer sie war bereits in der History und du lehnst sie ab.",
         "    unless it is already in history and you skip it.",
     )
     info_msg(
-        "  - STRG+C drücken, wenn die Sammlung beendet werden soll – danach kann die Liste abgearbeitet werden.\n",
-        "  - Press CTRL+C when collection is finished – the list can be processed afterwards.\n",
+        "  - STRG+C drücken, wenn die Sammlung beendet werden soll (optional).\n",
+        "  - Press CTRL+C when collection should be shut down (optional).\n",
     )
 
     # Start worker thread for immediate downloads
