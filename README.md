@@ -1,5 +1,8 @@
 # ytdlp-split
 
+Note: This project was developed with substantial assistance from AI-based coding tools.
+All architectural decisions, feature definitions, testing, and project direction were provided manually.
+
 A Python-based downloader and segmentation tool built on **yt-dlp**, featuring a clipboard-driven URL collector, optional trimming via timecodes (including fades), chapter-based splitting, and persistent history tracking. This public version contains no personal paths or identifiers.
 
 ---
