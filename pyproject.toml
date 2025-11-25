@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ytdlp-split"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "send2trash>=1.8.0",
+    "yt-dlp",
+    "pyperclip",
+]
+
+# Du kannst hier beliebige Befehlsnamen definieren.
+# Beide zeigen auf dieselbe Funktion ytdlp_split:main
+[project.scripts]
+ytdlp-split = "ytdlp_split:main"
+ytdl = "ytdlp_split:main"
+
+# Sagt setuptools: unser Projekt besteht aus genau einem Modul 'ytdlp_split.py'
+[tool.setuptools]
+py-modules = ["ytdlp_split"]

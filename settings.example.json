@@ -1,0 +1,21 @@
+{
+  "language": "en",
+  "paths": {
+    "base_dir": "C:\\ytdlp-split",
+    "audio_dl_dir": "C:\\ytdlp-split\\audio",
+    "video_dl_dir": "C:\\ytdlp-split\\video",
+    "split_dir": "C:\\ytdlp-split\\splits",
+    "urls_txt": "C:\\ytdlp-split\\urls.txt",
+    "history_tsv": "C:\\ytdlp-split\\urls_history.tsv"
+  },
+  "modes": {
+    "split_mode": false,
+    "video_mode": false,
+    "timecode_mode": false,
+    "playlist_mode": false
+  },
+  "timecode_filename": {
+    "include_range": true,
+    "include_fade": true
+  }
+}
