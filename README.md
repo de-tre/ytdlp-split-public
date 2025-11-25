@@ -44,7 +44,7 @@ A Python-based downloader and segmentation tool built on **yt-dlp**, featuring a
 * Normalizes URLs (e.g., strips unnecessary YouTube parameters)
 * De-duplicates by session and history
 * Retrieves metadata and duration
-* Appends entries to `urls.txt` and `urls_history.tsv`
+* Appends entries to `urls_history.tsv`
 * Enqueues jobs processed by a background worker running `python -m ytdlp_split`
 * Hotkeys: `s` (split), `v` (video), `t` (timecodes), `p` (playlists), `r` (re-run), `q` (quit)
 
@@ -97,7 +97,7 @@ Examples:
 ```bash
 ytdlp-split --download-only "https://youtu.be/..."
 ytdlp-split --download-video "https://youtube.com/watch?v=..."
-ytdlp-split --timecodes "0:30-1:00;1:55-2:05" "https://youtu.be/..."
+ytdlp-split --timecodes "0:30-1:00;1:55-2:05@1.2" "https://youtu.be/..."
 ```
 
 ---
